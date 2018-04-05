@@ -1,2 +1,40 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+ORG 0000H       伪指令ORG 指定000H 作为LJMP MAIN的地址，也就是单片机上电后
+CPU取指的初始地址；
+LJMP MAIN		无条件跳转到主程序MAIN；
+
+ORG 0030H		伪指令ORG指定030H作为主程序的第一个地址，也就是MOV A, #0FEH;的地址；
+MAIN:			主程序MAIN；
+ MOV A, #0FEH;	将立即数0FEH赋值给A;
+ MOV P2, A;		将A的内容赋给P2口，使P2.0置低，选中第一位LED数码管；
+ MOV DPTR, #T;	将T项表第一个数据的地址赋值给DPTR；
+LABEL:			0-F循环计数程序；
+ MOV R3, #00H;	将立即数00H赋值给R3，给R3赋初值和重置R3；
+ MOV A, R3;		将R3的内容赋给A；
+L2:
+MOVC A, @A+DPTR;   A+DPTR的值作为地址，将该地址指向的数据赋给A，即将T项表的数据赋给A；
+ MOV P0, A;		将A的内容赋给P0，即将T项表的第一个数据赋给A，使数码管显示0；
+ LCALL DELAY;		调用延时程序DELAY，延时0.2s；
+ INC R3;			将R3的内容+1后，赋给R3；
+ MOV A, R3;		将R3的内容赋给A，A与DPTR相加后，可以读取T项表的下一项数据；
+ CJNE A, #10H, L2;	判断A的内容是否与10H相等，不相等就跳转到L2，相等就顺序向下执行，使程序在查询到T项表最后一位时，不再向后查询；
+LJMP LABEL;	无条件跳转到LABEL，在查询到T项表最后一位时，跳转程序重置R3，重新查询T项表
+
+T:
+DB 0C0H,0F9H,0A4H,0B0H,99H,92H,82H,0F8H,80H,90H,88H,83H,0C6H,0A1H,86H,8EH;
+				创建项表，存储数码管0~F的段编码；
+
+DELAY:			延时程序DELAY；
+MOV R0, #02H;	将立即数02H赋值给R0;
+DELAY1:			延时程序DELAY1;
+ MOV R1, #0FAH;	将立即数0FAH赋值给R1;
+DELAY2:			延时程序DELAY2;
+ MOV R2, #0C8H;	将立即数0C8H赋值给R2
+DJNZ R2, $;		条件转移指令，若R2-1≠0，则原地跳转，否则执行下一条指令;因为
+R2初始值为0C8H，每执行一次DJNZ R2,$需要2个机器周期，所以这个循环结束后需要2*0C8H*T(T为机器周期)；
+
+DJNZ R1, DELAY2;	条件转移指令，若R1-1≠0，则跳转到DELAY2，否则执行下一条指令;因为R1初始值为0FAH，每执行一次本指令需要2个机器周期。所以这个循环结束后需要0FAH*（2*0C8H+2）T
+ 
+DJNZ R0, DELAY1;	条件转移指令，若R0-1≠0，则跳转到DELAY1，否则执行下一条指令;因为R0初始值为2，每执行一次本指令需要2个机器周期。每延迟1 个DELAY2执行一次本指令，所以这个循环结束需要2*（0FAH*（2*0C8H+2）+2）T≈200000T；
+ RET;	返回指令RET，指返回到刚才调用DELAY的指令的下一条指令，占2个机器周期；
+ 
+ END	结束指令END（伪指令不占地址），告诉汇编软件本源程序到此结束。也就是在编译的时候，只编译END以上的程序；每个程序只有一个END;
